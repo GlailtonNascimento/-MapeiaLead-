@@ -1,33 +1,21 @@
 
-# Google Colab - MAPEIA LEAD
-# Baixar base de CNPJs do BRASIL COMPLETO
-
+%%writefile baixar_base.py
 import os
 import requests
 from tqdm import tqdm
 
-print("=" * 60)
-print("📥 MAPEIA LEAD - Download da Base de CNPJs do BRASIL TODO")
-print("=" * 60)
+print("="*60)
+print("📥 MAPEIA LEAD - Download da Base de CNPJs")
+print("="*60)
 
-# Montar Google Drive para salvar os dados
-from google.colab import drive
-drive.mount('/content/drive')
+# Criar pasta para os dados
+os.makedirs("dados_brutos", exist_ok=True)
 
-# Criar pasta no Drive
-os.makedirs("/content/drive/MyDrive/mapeia_lead_dados", exist_ok=True)
+# Estados para download (comece com 1 para testar)
+estados = ["SP"]
 
-# TODOS OS 27 ESTADOS DO BRASIL (corrigido)
-estados = [
-    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
-    'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
-    'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
-]
-
-print(f"\n📌 Estados para download: {len(estados)} estados")
-print(f"   {', '.join(estados)}")
-print("⚠️  Atenção: Cada estado leva ~10-30 minutos")
-print("⏱️  Tempo total estimado: 2-4 horas")
+print(f"\n📌 Estados para download: {', '.join(estados)}")
+print("⚠️  Atenção: Cada estado leva ~15-30 minutos")
 print()
 
 def baixar_estado(uf):
@@ -44,8 +32,7 @@ def baixar_estado(uf):
             tamanho_mb = tamanho / (1024 * 1024)
             print(f"   Tamanho: {tamanho_mb:.1f} MB")
             
-            # Salva no Google Drive
-            zip_path = f"/content/drive/MyDrive/mapeia_lead_dados/cnpj_{uf}.zip"
+            zip_path = f"dados_brutos/cnpj_{uf}.zip"
             
             with open(zip_path, 'wb') as f:
                 for chunk in tqdm(response.iter_content(chunk_size=8192), 
@@ -65,18 +52,9 @@ def baixar_estado(uf):
         return False
 
 # Baixar cada estado
-sucessos = 0
-falhas = 0
-
 for uf in estados:
-    if baixar_estado(uf):
-        sucessos += 1
-    else:
-        falhas += 1
+    baixar_estado(uf)
 
-print("\n" + "=" * 60)
+print("\n" + "="*60)
 print("✅ DOWNLOAD CONCLUÍDO!")
-print(f"📊 Resumo: {sucessos} estados baixados, {falhas} falhas")
-print(f"📁 Arquivos salvos em: /content/drive/MyDrive/mapeia_lead_dados/")
-print("=" * 60)
-print("\n▶️ Próximo passo: Executar o processar_base.py no Colab")
+print("="*60)
