@@ -1,37 +1,114 @@
 
+# src/buscador.py
+import streamlit as st
 import pandas as pd
+import requests
+import time
 from typing import List, Dict
 
 class BuscadorCNPJ:
-    def __init__(self, caminho_base: str = "dados/base_cnpjs.parquet"):
-        self.caminho_base = caminho_base
-        self.base = None
+    def __init__(self):
+        """Carrega a base local de CNPJs"""
+        try:
+            # Tenta carregar a base do Brasil completo
+            self.base = pd.read_parquet("dados/base_brasil.parquet")
+            st.success(f"✅ Base carregada: {len(self.base):,} empresas ativas em todo Brasil")
+        except FileNotFoundError:
+            try:
+                # Fallback: tenta carregar estado por estado
+                self.base = self._carregar_estados()
+            except:
+                self.base = None
+                st.error("""
+                ❌ Base de dados não encontrada!
+                
+                Execute os scripts na seguinte ordem:
+                1. python baixar_base.py
+                2. python processar_base.py
+                
+                Ou aguarde o processamento na nuvem.
+                """)
+    
+    def _carregar_estados(self):
+        """Carrega bases de estados individuais"""
+        import os
+        estados = ['SP', 'RJ', 'MG']  # Adicione mais conforme baixar
+        dfs = []
+        
+        for uf in estados:
+            arquivo = f"dados/base_{uf}.parquet"
+            if os.path.exists(arquivo):
+                df = pd.read_parquet(arquivo)
+                dfs.append(df)
+                print(f"✅ Carregado {uf}: {len(df):,} empresas")
+        
+        if dfs:
+            return pd.concat(dfs, ignore_index=True)
+        return None
     
     def buscar_por_cnae_uf(self, cnae: str, uf: str, cidade: str = "") -> List[Dict]:
-        empresas_exemplo = {
-            "SP": [
-                {'Razão Social': 'Gelato Sul Sorvetes', 'CNPJ': '12.345.678/0001-90', 'Cidade': 'São Paulo', 'Telefone': '(11) 98765-4321', 'Endereço': 'Av. Paulista, 1000'},
-                {'Razão Social': 'Sorveteria Kids', 'CNPJ': '23.456.789/0001-01', 'Cidade': 'Campinas', 'Telefone': '(19) 3456-7890', 'Endereço': 'Rua das Flores, 500'},
-                {'Razão Social': 'Ice Mania', 'CNPJ': '34.567.890/0001-12', 'Cidade': 'Santos', 'Telefone': '(13) 98765-1234', 'Endereço': 'Av. da Praia, 200'},
-                {'Razão Social': 'Sorvete Bom Demais', 'CNPJ': '45.678.901/0001-23', 'Cidade': 'Ribeirão Preto', 'Telefone': '(16) 98765-4321', 'Endereço': 'Rua São Sebastião, 300'},
-                {'Razão Social': 'Gelato Artesanal', 'CNPJ': '56.789.012/0001-34', 'Cidade': 'Sorocaba', 'Telefone': '(15) 3456-7890', 'Endereço': 'Av. Independência, 150'},
-            ],
-            "RJ": [
-                {'Razão Social': 'Sorvete Carioca', 'CNPJ': '45.678.901/0001-23', 'Cidade': 'Rio de Janeiro', 'Telefone': '(21) 98765-4321', 'Endereço': 'Av. Atlântica, 500'},
-                {'Razão Social': 'Gelato Copacabana', 'CNPJ': '56.789.012/0001-34', 'Cidade': 'Rio de Janeiro', 'Telefone': '(21) 3456-7890', 'Endereço': 'Rua Santa Clara, 100'},
-            ],
-            "MG": [
-                {'Razão Social': 'Sorveteria Mineira', 'CNPJ': '67.890.123/0001-45', 'Cidade': 'Belo Horizonte', 'Telefone': '(31) 98765-4321', 'Endereço': 'Av. Afonso Pena, 1000'},
-            ]
-        }
+        """
+        Busca empresas por CNAE e UF na base local
+        """
+        if self.base is None:
+            return []
         
-        empresas = empresas_exemplo.get(uf.upper(), [])
+        # Limpa o CNAE (7 dígitos)
+        cnae_clean = str(cnae).replace('-', '').replace('.', '')[:7]
         
-        if cidade:
-            empresas = [e for e in empresas if cidade.upper() in e['Cidade'].upper()]
+        with st.spinner(f"🔍 Buscando empresas com CNAE {cnae_clean} em {uf}..."):
+            # Filtra por CNAE
+            resultado = self.base[self.base['CNAE'] == cnae_clean]
+            
+            # Filtra por UF
+            resultado = resultado[resultado['UF'] == uf.upper()]
+            
+            # Filtra por cidade (se informada)
+            if cidade:
+                resultado = resultado[resultado['Cidade'].str.contains(cidade.upper(), na=False)]
+            
+            # Limita resultados para performance
+            resultado = resultado.head(100)
         
-        for e in empresas:
-            e['UF'] = uf.upper()
-            e['Status'] = 'ATIVA'
+        if resultado.empty:
+            return []
+        
+        # Converte para lista de dicionários
+        empresas = []
+        for _, row in resultado.iterrows():
+            empresas.append({
+                'Razão Social': row.get('Nome_Fantasia', 'N/A'),
+                'CNPJ': row.get('CNPJ', 'N/A'),
+                'Cidade': row.get('Cidade', 'N/A'),
+                'UF': row.get('UF', 'N/A'),
+                'Telefone': 'Consultar na API',
+                'E-mail': 'Consultar na API',
+                'Endereço': f"{row.get('Logradouro', '')}, {row.get('Numero', '')}",
+                'Status': 'ATIVA'
+            })
+        
+        return empresas
+    
+    def enriquecer_com_api(self, empresas: List[Dict]) -> List[Dict]:
+        """
+        Opcional: Busca telefone e e-mail na BrasilAPI
+        """
+        for i, empresa in enumerate(empresas[:10]):  # Limita a 10 para não travar
+            cnpj = ''.join(filter(str.isdigit, empresa['CNPJ']))
+            
+            try:
+                url = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+                response = requests.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    dados = response.json()
+                    empresa['Telefone'] = dados.get('ddd_telefone_1', 'Não informado')
+                    empresa['E-mail'] = dados.get('email', 'Não informado')
+                
+                time.sleep(0.5)  # Evita bloqueio
+            except:
+                pass
+            
+            empresas[i] = empresa
         
         return empresas
