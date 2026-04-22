@@ -10,14 +10,18 @@ print("="*60)
 
 os.makedirs("dados_brutos", exist_ok=True)
 
-# URL OFICIAL da Receita Federal (janeiro/2025)
-# Para outros meses, mude o "2025-01" na URL
+# URL oficial da Receita Federal (janeiro/2025)
 url_base = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2025-01"
 
-estados = ["SP"]
+# TODOS OS 27 ESTADOS DO BRASIL
+estados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+           'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+           'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
 
-print(f"\n📌 Estados: {estados}")
+print(f"\n📌 Estados para download: {len(estados)} estados")
+print(f"   {', '.join(estados)}")
 print(f"📌 Fonte: Receita Federal (oficial)")
+print("⚠️  Atenção: Este processo pode levar de 6 a 8 horas")
 print()
 
 def baixar_estado(uf):
@@ -25,7 +29,6 @@ def baixar_estado(uf):
     url = f"{url_base}/{nome_arquivo}"
     
     print(f"📥 Baixando {uf}...")
-    print(f"   URL: {url}")
     
     try:
         response = requests.get(url, stream=True, timeout=120)
@@ -53,9 +56,15 @@ def baixar_estado(uf):
         print(f"   ❌ Erro: {e}")
         return False
 
+# Baixar cada estado
+sucessos = 0
 for uf in estados:
-    baixar_estado(uf)
+    if baixar_estado(uf):
+        sucessos += 1
 
 print("\n" + "="*60)
 print("✅ DOWNLOAD CONCLUÍDO!")
+print(f"📊 Resumo: {sucessos}/{len(estados)} estados baixados com sucesso")
+print("📁 Arquivos salvos em: dados_brutos/")
 print("="*60)
+print("\n▶️ Próximo passo: python processar_base.py")
