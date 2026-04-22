@@ -1,147 +1,165 @@
 
+%%writefile app.py
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-from utils.validadores import validar_cnae, validar_uf, validar_cidade
+import os
 
-# CONFIGURAÇÃO DA PÁGINA
+# Configuração da página
 st.set_page_config(
     page_title="Mapeia Lead",
     page_icon="🎯",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# CABEÇALHO
-st.title("🎯 Mapeia Lead")
-st.caption("Encontre seu cliente ideal por CNAE e região")
+# Estilo CSS personalizado
+st.markdown("""
+<style>
+    .main-header {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(90deg, #1e3c72, #2a5298);
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    .main-header h1 {
+        color: white;
+        margin: 0;
+    }
+    .main-header p {
+        color: #a8c8ff;
+        margin: 0;
+    }
+    .result-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+    .stButton button {
+        background-color: #2a5298;
+        color: white;
+        width: 100%;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# DESENVOLVEDOR
-st.markdown("---")
-st.markdown("👨‍💻 **Desenvolvedor: Glailton Nascimento**")
-st.markdown("---")
+# Cabeçalho
+st.markdown("""
+<div class="main-header">
+    <h1>🎯 MAPEIA LEAD</h1>
+    <p>Encontre empresas por CNAE e UF - Dados oficiais</p>
+</div>
+""", unsafe_allow_html=True)
 
-# SIDEBAR COM FILTROS
+# Sidebar
 with st.sidebar:
-    st.header("🔍 Filtros de Busca")
+    st.image("https://img.icons8.com/color/96/000000/business-group.png", width=80)
+    st.markdown("### 🔍 Filtros de Busca")
     
-    cnae = st.text_input(
-        "CNAE *",
-        placeholder="Ex: 56120 (sorveteria) ou 47211 (mercado)",
-        help="Digite os 7 dígitos do CNAE"
-    )
+    cnae = st.text_input("📌 CNAE", value="5612", help="Ex: 5612 (sorveterias), 4721 (mercados)")
     
-    uf = st.selectbox(
-        "Estado *",
-        options=["SP", "RJ", "MG", "ES", "PR", "SC", "RS", "BA", "PE", "CE", "GO", "DF", "Outro"],
-        help="Selecione o estado para buscar"
-    )
+    uf = st.selectbox("📍 Estado", [
+        "SP", "RJ", "MG", "ES", "BA", "PE", "PR", "RS", "SC", 
+        "DF", "GO", "MT", "MS", "CE", "RN", "PB", "PI", "MA", 
+        "PA", "AM", "AC", "RO", "RR", "TO", "SE", "AL", "AP"
+    ])
     
-    if uf == "Outro":
-        uf = st.text_input("Digite a UF", max_chars=2, placeholder="Ex: AM")
+    st.divider()
     
-    cidade = st.text_input(
-        "Cidade (opcional)",
-        placeholder="Deixe em branco para todo o estado"
-    )
+    st.markdown("### 📊 CNAEs comuns")
+    st.markdown("""
+    - Sorveterias: **5612**
+    - Mercados: **4721**
+    - Pizzarias: **5612**
+    - Farmácias: **4771**
+    - Academias: **9312**
+    - Restaurantes: **5611**
+    """)
     
-    buscar = st.button("🔍 Buscar Leads", type="primary", use_container_width=True)
+    st.divider()
+    
+    buscar = st.button("🔍 BUSCAR LEADS", type="primary", use_container_width=True)
 
-# ÁREA DE RESULTADOS
+# Função para buscar dados
+def buscar_empresas(cnae_alvo, uf_alvo):
+    """Busca empresas na base de dados"""
+    try:
+        # Tenta carregar base real
+        df = pd.read_csv('dados/base_brasil.csv', dtype=str)
+        
+        # Filtra
+        resultado = df[
+            (df['cnae_fiscal_principal'].str.startswith(cnae_alvo, na=False)) &
+            (df['uf'] == uf_alvo) &
+            (df['situacao_cadastral'].isin(['02', 'ATIVA']))
+        ]
+        
+        return resultado
+    except:
+        # Se não tiver base, usa dados de exemplo
+        dados_exemplo = pd.DataFrame([
+            ['12345678000101', 'Gelato Sul Sorvetes', '5612001', '02', 'SP', 'São Paulo', '11', '987654321'],
+            ['23456789000102', 'Sorveteria Kids', '5612001', '02', 'SP', 'Campinas', '19', '987654322'],
+            ['34567890000103', 'Ice Mania', '5612001', '02', 'SP', 'Santos', '13', '987654323'],
+        ], columns=['cnpj', 'razao_social', 'cnae_fiscal_principal', 'situacao_cadastral', 'uf', 'municipio', 'ddd_telefone_1', 'telefone_1'])
+        
+        resultado = dados_exemplo[dados_exemplo['uf'] == uf_alvo]
+        return resultado
+
+# Área principal
 if buscar:
     if not cnae:
-        st.error("❌ Digite um CNAE")
+        st.error("❌ Por favor, digite um CNAE")
     else:
-        # Valida CNAE
-        valido, resultado = validar_cnae(cnae)
-        if not valido:
-            st.error(f"❌ {resultado}")
-        else:
-            # Valida UF
-            valido, resultado_uf = validar_uf(uf)
-            if not valido:
-                st.error(f"❌ {resultado_uf}")
+        with st.spinner(f"🔍 Buscando empresas com CNAE {cnae} em {uf}..."):
+            resultado = buscar_empresas(cnae, uf)
+            
+            if resultado.empty:
+                st.warning(f"⚠️ Nenhuma empresa encontrada para CNAE {cnae} em {uf}")
             else:
-                # Valida cidade
-                valido, resultado_cidade = validar_cidade(cidade)
-                if not valido:
-                    st.error(f"❌ {resultado_cidade}")
-                else:
-                    with st.spinner("🔄 Buscando empresas ativas..."):
-                        # DADOS DE EXEMPLO (enquanto não tem base real)
-                        empresas = [
-                            {
-                                'Razão Social': 'Gelato Sul Sorvetes Ltda',
-                                'CNPJ': '12.345.678/0001-90',
-                                'Cidade': 'São Paulo',
-                                'UF': resultado_uf,
-                                'Telefone': '(11) 98765-4321',
-                                'Endereço': 'Av. Paulista, 1000',
-                                'Status': 'ATIVA'
-                            },
-                            {
-                                'Razão Social': 'Sorveteria Kids Feliz',
-                                'CNPJ': '23.456.789/0001-01',
-                                'Cidade': 'Campinas',
-                                'UF': resultado_uf,
-                                'Telefone': '(19) 3456-7890',
-                                'Endereço': 'Rua das Flores, 500',
-                                'Status': 'ATIVA'
-                            },
-                            {
-                                'Razão Social': 'Ice Mania Sorvetes',
-                                'CNPJ': '34.567.890/0001-12',
-                                'Cidade': 'Santos',
-                                'UF': resultado_uf,
-                                'Telefone': '(13) 98765-1234',
-                                'Endereço': 'Av. da Praia, 200',
-                                'Status': 'ATIVA'
-                            },
-                            {
-                                'Razão Social': 'Sorvete Bom Demais',
-                                'CNPJ': '45.678.901/0001-23',
-                                'Cidade': 'Ribeirão Preto',
-                                'UF': resultado_uf,
-                                'Telefone': '(16) 98765-4321',
-                                'Endereço': 'Rua São Sebastião, 300',
-                                'Status': 'ATIVA'
-                            },
-                            {
-                                'Razão Social': 'Gelato Artesanal',
-                                'CNPJ': '56.789.012/0001-34',
-                                'Cidade': 'Sorocaba',
-                                'UF': resultado_uf,
-                                'Telefone': '(15) 3456-7890',
-                                'Endereço': 'Av. Independência, 150',
-                                'Status': 'ATIVA'
-                            }
-                        ]
-                        
-                        # Filtra por cidade se informada
-                        if resultado_cidade:
-                            empresas = [e for e in empresas if resultado_cidade.upper() in e['Cidade'].upper()]
-                        
-                        if not empresas:
-                            st.warning("⚠️ Nenhuma empresa encontrada com esses critérios.")
-                        else:
-                            st.success(f"✅ Encontradas **{len(empresas)}** empresas ativas")
-                            
-                            # Converte para DataFrame
-                            df = pd.DataFrame(empresas)
-                            
-                            # Exibe tabela
-                            st.dataframe(df, use_container_width=True, hide_index=True)
-                            
-                            # Botão de exportação
-                            csv = df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="📥 Exportar para CSV",
-                                data=csv,
-                                file_name=f"leads_{resultado}_{resultado_uf}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
+                st.success(f"✅ Encontradas **{len(resultado)}** empresas ativas")
+                
+                # Métricas
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total de Leads", len(resultado))
+                with col2:
+                    st.metric("CNAE Buscado", cnae)
+                with col3:
+                    st.metric("UF", uf)
+                
+                st.divider()
+                
+                # Tabela de resultados
+                st.markdown("### 📋 RESULTADOS")
+                
+                # Selecionar colunas para exibir
+                colunas_exibir = ['razao_social', 'municipio', 'ddd_telefone_1', 'telefone_1', 'cnpj']
+                colunas_existentes = [c for c in colunas_exibir if c in resultado.columns]
+                
+                # Renomear colunas
+                df_display = resultado[colunas_existentes].copy()
+                df_display.columns = ['Empresa', 'Cidade', 'DDD', 'Telefone', 'CNPJ']
+                
+                st.dataframe(df_display, use_container_width=True)
+                
+                # Botão de exportação
+                st.divider()
+                csv = resultado.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 EXPORTAR PARA CSV",
+                    data=csv,
+                    file_name=f"leads_{cnae}_{uf}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
 
-# RODAPÉ
+# Rodapé
 st.divider()
-st.caption("🔒 Dados consultados em tempo real. Sistema de prospecção inteligente.")
-st.caption(f"© 2025 Mapeia Lead - Desenvolvido por Glailton Nascimento")
+st.markdown("""
+<div style="text-align: center; color: #666; font-size: 12px;">
+    <p>🔒 Dados da Receita Federal | 🎯 Mapeia Lead - Prospecção Inteligente</p>
+    <p>Desenvolvido por Glailton Nascimento</p>
+</div>
+""", unsafe_allow_html=True)
