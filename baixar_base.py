@@ -5,24 +5,27 @@ import requests
 from tqdm import tqdm
 
 print("="*60)
-print("📥 MAPEIA LEAD - Download da Base de CNPJs")
+print("📥 MAPEIA LEAD - Download da Base Oficial da Receita")
 print("="*60)
 
-# Criar pasta para os dados
 os.makedirs("dados_brutos", exist_ok=True)
 
-# Estados para download (comece com 1 para testar)
+# URL OFICIAL da Receita Federal (janeiro/2025)
+# Para outros meses, mude o "2025-01" na URL
+url_base = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2025-01"
+
 estados = ["SP"]
 
-print(f"\n📌 Estados para download: {', '.join(estados)}")
-print("⚠️  Atenção: Cada estado leva ~15-30 minutos")
+print(f"\n📌 Estados: {estados}")
+print(f"📌 Fonte: Receita Federal (oficial)")
 print()
 
 def baixar_estado(uf):
-    """Baixa os dados de um estado"""
-    url = f"https://data.brasil.io/dataset/cnpj/data/cnpj_completo_{uf.lower()}.zip"
+    nome_arquivo = f"Estabelecimentos_{uf}.zip"
+    url = f"{url_base}/{nome_arquivo}"
     
     print(f"📥 Baixando {uf}...")
+    print(f"   URL: {url}")
     
     try:
         response = requests.get(url, stream=True, timeout=120)
@@ -32,7 +35,7 @@ def baixar_estado(uf):
             tamanho_mb = tamanho / (1024 * 1024)
             print(f"   Tamanho: {tamanho_mb:.1f} MB")
             
-            zip_path = f"dados_brutos/cnpj_{uf}.zip"
+            zip_path = f"dados_brutos/{nome_arquivo}"
             
             with open(zip_path, 'wb') as f:
                 for chunk in tqdm(response.iter_content(chunk_size=8192), 
@@ -44,14 +47,12 @@ def baixar_estado(uf):
             print(f"   ✅ {uf} baixado com sucesso!")
             return True
         else:
-            print(f"   ❌ Erro HTTP {response.status_code}")
+            print(f"   ❌ HTTP {response.status_code}")
             return False
-            
     except Exception as e:
         print(f"   ❌ Erro: {e}")
         return False
 
-# Baixar cada estado
 for uf in estados:
     baixar_estado(uf)
 
