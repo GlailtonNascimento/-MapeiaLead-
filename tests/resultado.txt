@@ -1,0 +1,46 @@
+
+==================================================
+MAPEIA LEAD - RELATÓRIO DE TESTES
+Data: 2025-01-15
+Versão: 1.0
+==================================================
+
+✅ TESTE 1: Validação de CNAE
+   - CNAE válido "56120": OK
+   - CNAE válido "5612-0": OK
+   - CNAE vazio: OK (rejeitou)
+   - CNAE inválido "123": OK (rejeitou)
+
+✅ TESTE 2: Validação de UF
+   - UF "SP": OK
+   - UF "RJ": OK
+   - UF vazio: OK (aceitou como opcional)
+   - UF inválido "XX": OK (rejeitou)
+
+✅ TESTE 3: Validação de Cidade
+   - Cidade "São Paulo": OK
+   - Cidade vazia: OK
+   - Cidade "A": OK (rejeitou muito curta)
+
+✅ TESTE 4: Busca de Empresas
+   - Busca por CNAE 56120 em SP: OK
+   - Retornou 5 empresas (dados de exemplo)
+   - Todos os campos obrigatórios presentes
+
+✅ TESTE 5: Exportação CSV
+   - Geração do arquivo CSV: OK
+   - Download funcionando: OK
+
+✅ TESTE 6: Interface Streamlit
+   - App abre sem erros: OK
+   - Sidebar com filtros: OK
+   - Botão de busca: OK
+   - Tabela de resultados: OK
+
+==================================================
+RESULTADO FINAL: TODOS OS TESTES PASSARAM ✅
+Sistema pronto para uso!
+==================================================
+
+Desenvolvedor: Glailton Nascimento
+Projeto: MapeiaLead
