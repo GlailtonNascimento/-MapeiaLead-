@@ -10,12 +10,12 @@ cnae = st.text_input("CNAE", "5612")
 uf = st.selectbox("UF", ["SP", "RJ", "MG", "BA", "PE", "PR", "RS", "SC"])
 
 if st.button("BUSCAR"):
-    # Dados embutidos (não precisa de pandas)
+    # Dados embutidos
     empresas = {
-        ("5612", "SP"): ["Gelato Sul Sorvetes - SP - (11) 98765-4321", "Sorveteria Kids - Campinas - (19) 98765-4322"],
-        ("5612", "RJ"): ["Ice Mania - Rio - (21) 98765-4323"],
-        ("5612", "MG"): ["Sorvete Bom - BH - (31) 98765-4324"],
-        ("4721", "RJ"): ["Mercado Popular - Rio - (21) 98765-4325"],
+        ("5612", "SP"): ["Gelato Sul Sorvetes - SP", "Sorveteria Kids - Campinas"],
+        ("5612", "RJ"): ["Ice Mania - Rio de Janeiro"],
+        ("5612", "MG"): ["Sorvete Bom - Belo Horizonte"],
+        ("4721", "RJ"): ["Mercado Popular - Rio de Janeiro"],
     }
     
     resultados = empresas.get((cnae, uf), [])
@@ -25,8 +25,12 @@ if st.button("BUSCAR"):
         for r in resultados:
             st.write(f"- {r}")
         
-        # Criar CSV manualmente
         csv = "\n".join(resultados)
         st.download_button("📥 Exportar CSV", csv, f"leads_{cnae}_{uf}.csv")
     else:
         st.warning("Nenhuma empresa encontrada")
+
+# Rodapé com o nome do desenvolvedor
+st.markdown("---")
+st.markdown("### 👨‍💻 Desenvolvido por **Glailton Nascimento**")
+st.caption("© 2025 Mapeia Lead - Todos os direitos reservados")
